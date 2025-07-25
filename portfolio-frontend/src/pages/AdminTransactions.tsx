@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Upload, Download, Plus, Info } from 'lucide-react';
@@ -15,13 +15,14 @@ import TransactionDialog from '@/components/admin/TransactionDialog';
 import UploadDialog from '@/components/admin/UploadDialog';
 import type { Transaction } from '@/types/transaction';
 import Papa from 'papaparse';
+import { supabase } from '@/lib/supabaseClient';
+import { convertDate } from '@/types/transaction';
 
 const getTransactionKey = (t: Partial<Transaction>) =>
   [t.date, t.account, t.transactionType, t.symbol, t.quantity, t.price].join('|');
 
 const AdminTransactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [accountMappings, setAccountMappings] = useState<any[]>([]); // Local state for account management
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,87 +38,149 @@ const AdminTransactions = () => {
   }>>([]);
   const [activeTab, setActiveTab] = useState('transactions');
 
+  // Fetch transactions on component mount
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*');
+      
+      if (error) throw error;
+      
+      setTransactions(data || []);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      alert('Failed to fetch transactions');
+    }
+  };
+
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction({ ...transaction });
     setIsEditDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (editingTransaction) {
-      setTransactions(transactions.map(t =>
-        t.id === editingTransaction.id ? editingTransaction : t
-      ));
+  const handleSave = async () => {
+    if (!editingTransaction) return;
+
+    try {
+      if (editingTransaction.id.startsWith('temp_')) {
+        // New transaction
+        const { id, ...transactionData } = editingTransaction;
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert([transactionData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        setTransactions(prev => [...prev, data]);
+      } else {
+        // Update existing transaction
+        const { error } = await supabase
+          .from('transactions')
+          .update(editingTransaction)
+          .eq('id', editingTransaction.id);
+
+        if (error) throw error;
+
+        setTransactions(prev => 
+          prev.map(t => t.id === editingTransaction.id ? editingTransaction : t)
+        );
+      }
+
       setIsEditDialogOpen(false);
       setEditingTransaction(null);
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+      alert('Failed to save transaction');
     }
   };
 
-  const handleDelete = (id: string) => {
-    setTransactions(transactions.filter(t => t.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTransactions(prev => prev.filter(t => t.id !== id));
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('Failed to delete transaction');
+    }
   };
 
   const handleAddNew = () => {
     const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
+      id: `temp_${Date.now()}`,
+      date: new Date(),
       account: '',
-      description: '',
       transactionType: 'Buy',
       symbol: '',
       quantity: 0,
       price: 0,
-      grossAmount: 0,
       commission: 0,
-      netAmount: 0,
       exchangeRate: 1.0000
     };
     setEditingTransaction(newTransaction);
     setIsEditDialogOpen(true);
   };
 
-
-
-  // Handles CSV file upload and parsing, prevents duplicates
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
+      complete: async (results) => {
         const parsedData = results.data as any[];
-        // Build a set of existing transaction keys
         const existingKeys = new Set(transactions.map(getTransactionKey));
-        const newTransactions: Transaction[] = parsedData.map((row, idx) => ({
-          id: Date.now().toString() + '-' + idx,
+        const newTransactions = parsedData.map(row => ({
           transactionType: row['Transaction Type'] || '',
           account: row['Account'] || '',
           symbol: row['Symbol'] || '',
-          date: row['Date'] || '',
+          date: row['Date'] ? new Date(convertDate(row['Date'])) : new Date(),
           quantity: row['Quantity'] ? parseFloat(row['Quantity']) : null,
-          price: row['Trade Price'] ? parseFloat(row['Trade Price']) : null, // Standardized to 'Trade Price'
-          grossAmount: 0, // You may want to calculate this or add a column
-          commission: row['Commission'] ? parseFloat(row['Commission']) : (row['Comm/Fee'] ? parseFloat(row['Comm/Fee']) : null), // Updated header
-          netAmount: 0, // You may want to calculate this or add a column
+          price: row['Trade Price'] ? parseFloat(row['Trade Price']) : null,
+          commission: row['Commission'] ? parseFloat(row['Commission']) : (row['Comm/Fee'] ? parseFloat(row['Comm/Fee']) : null),
           exchangeRate: row['Exchange Rate'] ? parseFloat(row['Exchange Rate']) : 1.0,
-          description: '', // Not present in CSV, can be left blank or mapped if available
         }));
-        // Filter out duplicates
+
         const uniqueNewTransactions = newTransactions.filter(t => !existingKeys.has(getTransactionKey(t)));
         const duplicates = newTransactions.length - uniqueNewTransactions.length;
-        
-        // Add to transactions
-        setTransactions(prev => [...prev, ...uniqueNewTransactions]);
-        
-        // Add upload log
-        const uploadLog = {
-          id: Date.now().toString(),
-          fileName: file.name,
-          uploadDate: new Date().toLocaleString(),
-          newTransactions: uniqueNewTransactions.length,
-          totalTransactions: parsedData.length,
-          duplicates: duplicates
-        };
-        setUploadLogs(prev => [uploadLog, ...prev.slice(0, 4)]); // Keep last 5 logs
-        
+
+        try {
+          if (uniqueNewTransactions.length > 0) {
+            const { error } = await supabase
+              .from('transactions')
+              .insert(uniqueNewTransactions);
+
+            if (error) throw error;
+          }
+
+          // Refresh transactions from database
+          await fetchTransactions();
+
+          // Add upload log
+          const uploadLog = {
+            id: Date.now().toString(),
+            fileName: file.name,
+            uploadDate: new Date().toLocaleString(),
+            newTransactions: uniqueNewTransactions.length,
+            totalTransactions: parsedData.length,
+            duplicates: duplicates
+          };
+          setUploadLogs(prev => [uploadLog, ...prev.slice(0, 4)]);
+        } catch (error) {
+          console.error('Error uploading transactions:', error);
+          alert('Failed to upload transactions');
+        }
+
         setIsUploadDialogOpen(false);
       },
       error: (err) => {
@@ -141,8 +204,7 @@ const AdminTransactions = () => {
       'Quantity': t.quantity,
       'Trade Price': t.price,
       'Commission': t.commission,
-      'Exchange Rate': t.exchangeRate,
-      'Description': t.description
+      'Exchange Rate': t.exchangeRate
     }));
 
     // Convert to CSV string
@@ -161,9 +223,10 @@ const AdminTransactions = () => {
   };
 
   const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = 
       transaction.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.account.toLowerCase().includes(searchTerm.toLowerCase());
+      transaction.account.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.transactionType.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterType === 'all' || transaction.transactionType === filterType;
     return matchesSearch && matchesFilter;
   });
