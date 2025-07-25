@@ -17,13 +17,21 @@ interface TransactionFiltersProps {
   setSearchTerm: (value: string) => void;
   filterType: string;
   setFilterType: (value: string) => void;
+  startDate: string;
+  setStartDate: (value: string) => void;
+  endDate: string;
+  setEndDate: (value: string) => void;
 }
 
 const TransactionFilters = ({ 
   searchTerm, 
   setSearchTerm, 
   filterType, 
-  setFilterType 
+  setFilterType,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate
 }: TransactionFiltersProps) => {
   return (
     <Card>
@@ -31,14 +39,14 @@ const TransactionFilters = ({
         <CardTitle>Filters</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <Label htmlFor="search">Search</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 id="search"
-                placeholder="Search by description, symbol, account, or client name..."
+                placeholder="Search by account, symbol, or currency..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -48,16 +56,34 @@ const TransactionFilters = ({
           <div>
             <Label htmlFor="filter">Transaction Type</Label>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Buy">Buy</SelectItem>
                 <SelectItem value="Sell">Sell</SelectItem>
-                <SelectItem value="Dividend">Dividend</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="startDate">Start Date</Label>
+            <Input
+              id="startDate"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="endDate">End Date</Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate} // Prevents selecting end date before start date
+            />
           </div>
         </div>
       </CardContent>

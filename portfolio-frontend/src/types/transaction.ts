@@ -22,15 +22,55 @@ export interface AccountMapping {
 }
 
 export function convertDate(dateStr: string): Date {
-  // Try parsing the date string directly
-  const parsedDate = new Date(dateStr);
-  
-  // Check if the date is valid
-  if (!isNaN(parsedDate.getTime())) {
-    return parsedDate;
+  // Remove extra spaces and convert to lowercase for consistent handling
+  dateStr = dateStr.trim().toLowerCase();
+
+  // Try parsing as ISO format (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr);
   }
-  
-  throw new Error(`Invalid date format: ${dateStr}`);
+
+  // Try DD-MM-YYYY format
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+    const [day, month, year] = dateStr.split('-');
+    return new Date(`${year}-${month}-${day}`);
+  }
+
+  // Try text-based format (e.g., "17 March 2025" or "17 Mar 2025")
+  const months: { [key: string]: string } = {
+    'january': '01', 'jan': '01',
+    'february': '02', 'feb': '02',
+    'march': '03', 'mar': '03',
+    'april': '04', 'apr': '04',
+    'may': '05',
+    'june': '06', 'jun': '06',
+    'july': '07', 'jul': '07',
+    'august': '08', 'aug': '08',
+    'september': '09', 'sep': '09',
+    'october': '10', 'oct': '10',
+    'november': '11', 'nov': '11',
+    'december': '12', 'dec': '12'
+  };
+
+  const textMatch = dateStr.match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})$/);
+  if (textMatch) {
+    const [, day, monthText, year] = textMatch;
+    const month = months[monthText];
+    if (month) {
+      // Pad day with leading zero if needed
+      const paddedDay = day.padStart(2, '0');
+      return new Date(`${year}-${month}-${paddedDay}`);
+    }
+  }
+
+  // If none of the above formats work, try native Date parsing
+  const nativeDate = new Date(dateStr);
+  if (!isNaN(nativeDate.getTime())) {
+    return nativeDate;
+  }
+
+  // If all parsing attempts fail, throw an error
+  throw new Error(`Invalid date format: ${dateStr}. Supported formats: YYYY-MM-DD, DD-MM-YYYY, DD Month YYYY`);
 }
 
 // Helper function to format Date object to string for display

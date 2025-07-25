@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Transaction } from '@/types/transaction';
+import { formatDate } from '@/types/transaction';
 
 interface TransactionDialogProps {
   isOpen: boolean;
@@ -38,17 +39,17 @@ const TransactionDialog = ({
 }: TransactionDialogProps) => {
   if (!editingTransaction) return null;
 
-  const isNewTransaction = editingTransaction.id === Date.now().toString();
+  const isNewTransaction = editingTransaction.id.startsWith('temp_');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {isNewTransaction ? 'Add New Transaction' : 'Edit Transaction'}
+            {isNewTransaction ? 'Add Transaction' : 'Edit Transaction'}
           </DialogTitle>
           <DialogDescription>
-            Modify transaction details below
+            {isNewTransaction ? 'Add new transaction details below' : 'Modify transaction details below'}
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-4">
@@ -57,10 +58,10 @@ const TransactionDialog = ({
             <Input
               id="date"
               type="date"
-              value={editingTransaction.date}
+              value={formatDate(editingTransaction.date)}
               onChange={(e) => setEditingTransaction({
                 ...editingTransaction,
-                date: e.target.value
+                date: new Date(e.target.value)
               })}
             />
           </div>
@@ -111,7 +112,6 @@ const TransactionDialog = ({
               <SelectContent>
                 <SelectItem value="Buy">Buy</SelectItem>
                 <SelectItem value="Sell">Sell</SelectItem>
-                <SelectItem value="Dividend">Dividend</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -122,7 +122,7 @@ const TransactionDialog = ({
               value={editingTransaction.symbol}
               onChange={(e) => setEditingTransaction({
                 ...editingTransaction,
-                symbol: e.target.value
+                symbol: e.target.value.toUpperCase()
               })}
             />
           </div>
@@ -185,7 +185,7 @@ const TransactionDialog = ({
           </Button>
           <Button onClick={onSave}>
             <Save className="w-4 h-4 mr-2" />
-            Save Transaction
+            {isNewTransaction ? 'Add Transaction' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>

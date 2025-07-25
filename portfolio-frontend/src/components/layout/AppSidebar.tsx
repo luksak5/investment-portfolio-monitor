@@ -66,46 +66,49 @@ export const AppSidebar = ({ userRole }: AppSidebarProps) => {
   };
 
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="p-4">
+    <Sidebar className="border-r bg-white w-64 fixed h-full">
+      <SidebarHeader className="p-4 border-b bg-white hover:bg-white active:bg-white">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-md">
             <LayoutDashboard className="w-4 h-4 text-white" />
           </div>
-          {state === 'expanded' && (
-            <div>
-              <h2 className="font-semibold text-lg">Portfolio Monitor</h2>
-              <p className="text-sm text-muted-foreground">{getRoleLabel()}</p>
-            </div>
-          )}
+          <div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent whitespace-nowrap">
+              Portfolio Monitor
+            </h2>
+            <p className="text-sm font-semibold text-primary/80 whitespace-nowrap">{getRoleLabel()}</p>
+          </div>
         </div>
       </SidebarHeader>
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url}
-                      className={({ isActive }) => 
-                        `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                          isActive 
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'hover:bg-accent hover:text-accent-foreground'
-                        }`
-                      }
-                    >
-                      <item.icon className="w-4 h-4" />
-                      {state === 'expanded' && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+          <SidebarGroupLabel className="text-sm font-medium text-muted-foreground px-4">
+            Navigation
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="flex flex-col gap-1 p-2">
+            {menuItems.map((item) => (
+              <NavLink 
+                key={item.title}
+                to={item.url}
+                end={item.title === 'Dashboard'} // Add this line to make Dashboard link exact
+                className={({ isActive }) => {
+                  const baseClasses = "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-md bg-white";
+                  const activeClasses = "text-primary font-semibold border-l-2 border-primary";
+                  const inactiveClasses = "hover:bg-gray-50/80 text-gray-700";
+                  return `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
+                }}
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon className={`w-5 h-5 ${isActive ? 'text-primary' : 'text-gray-600'}`} />
+                    <span className="font-medium">
+                      {item.title}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            ))}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

@@ -16,7 +16,7 @@ import UploadDialog from '@/components/admin/UploadDialog';
 import type { Transaction } from '@/types/transaction';
 import Papa from 'papaparse';
 import { supabase } from '@/lib/supabaseClient';
-import { convertDate } from '@/types/transaction';
+import { convertDate, formatDate } from '@/types/transaction';
 
 const getTransactionKey = (t: Partial<Transaction>) =>
   [t.date, t.account, t.transactionType, t.symbol, t.quantity, t.price].join('|');
@@ -27,6 +27,8 @@ const AdminTransactions = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadLogs, setUploadLogs] = useState<Array<{
     id: string;
@@ -101,19 +103,19 @@ const AdminTransactions = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (ids: string[]) => {
     try {
       const { error } = await supabase
         .from('transactions')
         .delete()
-        .eq('id', id);
+        .in('id', ids);
 
       if (error) throw error;
 
-      setTransactions(prev => prev.filter(t => t.id !== id));
+      setTransactions(prev => prev.filter(t => !ids.includes(t.id)));
     } catch (error) {
-      console.error('Error deleting transaction:', error);
-      alert('Failed to delete transaction');
+      console.error('Error deleting transactions:', error);
+      alert('Failed to delete transactions');
     }
   };
 
@@ -134,59 +136,118 @@ const AdminTransactions = () => {
   };
 
   const handleFileUpload = async (file: File) => {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const parsedData = results.data as any[];
-        const existingKeys = new Set(transactions.map(getTransactionKey));
-        const newTransactions = parsedData.map(row => ({
-          transactionType: row['Transaction Type'] || '',
-          account: row['Account'] || '',
-          symbol: row['Symbol'] || '',
-          date: row['Date'] ? new Date(convertDate(row['Date'])) : new Date(),
-          quantity: row['Quantity'] ? parseFloat(row['Quantity']) : null,
-          price: row['Trade Price'] ? parseFloat(row['Trade Price']) : null,
-          commission: row['Commission'] ? parseFloat(row['Commission']) : (row['Comm/Fee'] ? parseFloat(row['Comm/Fee']) : null),
-          exchangeRate: row['Exchange Rate'] ? parseFloat(row['Exchange Rate']) : 1.0,
-        }));
+    try {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            console.log('Parsing CSV:', results.data);
+            const parsedData = results.data as any[];
+            
+            if (parsedData.length === 0) {
+              alert('No data found in CSV file');
+              return;
+            }
 
-        const uniqueNewTransactions = newTransactions.filter(t => !existingKeys.has(getTransactionKey(t)));
-        const duplicates = newTransactions.length - uniqueNewTransactions.length;
+            // First fetch latest transactions to ensure accurate duplicate checking
+            const { data: existingTransactions, error: fetchError } = await supabase
+              .from('transactions')
+              .select('*');
 
-        try {
-          if (uniqueNewTransactions.length > 0) {
-            const { error } = await supabase
+            if (fetchError) {
+              throw new Error('Failed to check for existing transactions');
+            }
+
+            // Create unique keys for existing transactions
+            const existingKeys = new Set(
+              (existingTransactions || []).map(t => 
+                `${formatDate(t.date)}|${t.account}|${t.transactionType}|${t.symbol}|${t.quantity}|${t.price}`
+              )
+            );
+
+            // Process new transactions
+            const newTransactions = parsedData.map(row => {
+              // Handle date conversion first
+              let transactionDate: Date;
+              try {
+                transactionDate = row['Date'] ? convertDate(row['Date']) : new Date();
+              } catch (error) {
+                console.error('Date conversion error:', error);
+                transactionDate = new Date(row['Date']); // Fallback to direct conversion
+              }
+
+              return {
+                transactionType: row['Transaction Type'] || '',
+                account: row['Account'] || '',
+                symbol: row['Symbol'] || '',
+                date: transactionDate,
+                quantity: row['Quantity'] ? parseFloat(row['Quantity']) : null,
+                price: row['Trade Price'] ? parseFloat(row['Trade Price']) : null,
+                commission: row['Commission'] ? parseFloat(row['Commission']) : (row['Comm/Fee'] ? parseFloat(row['Comm/Fee']) : null),
+                exchangeRate: row['Exchange Rate'] ? parseFloat(row['Exchange Rate']) : 1.0,
+                currency: row['Currency'] || 'USD'  // Add this line to properly map currency
+              };
+            });
+
+            // Check for duplicates using the same key format
+            const uniqueNewTransactions = newTransactions.filter(t => {
+              const key = `${formatDate(t.date)}|${t.account}|${t.transactionType}|${t.symbol}|${t.quantity}|${t.price}`;
+              return !existingKeys.has(key);
+            });
+
+            const duplicates = newTransactions.length - uniqueNewTransactions.length;
+
+            if (duplicates > 0) {
+              console.log(`Found ${duplicates} duplicate transactions`);
+            }
+
+            if (uniqueNewTransactions.length === 0) {
+              alert('All transactions in this file are duplicates');
+              return;
+            }
+
+            // Insert unique transactions
+            const { error: uploadError } = await supabase
               .from('transactions')
               .insert(uniqueNewTransactions);
 
-            if (error) throw error;
+            if (uploadError) {
+              console.error('Supabase upload error:', uploadError);
+              throw uploadError;
+            }
+
+            // Refresh transactions from database
+            await fetchTransactions();
+
+            // Add upload log
+            const uploadLog = {
+              id: Date.now().toString(),
+              fileName: file.name,
+              uploadDate: new Date().toLocaleString(),
+              newTransactions: uniqueNewTransactions.length,
+              totalTransactions: parsedData.length,
+              duplicates: duplicates
+            };
+            setUploadLogs(prev => [uploadLog, ...prev.slice(0, 4)]);
+
+            alert(`Successfully uploaded ${uniqueNewTransactions.length} transactions. ${duplicates} duplicates were skipped.`);
+            setIsUploadDialogOpen(false);
+
+          } catch (error) {
+            console.error('Error processing CSV:', error);
+            alert('Failed to process CSV file: ' + (error as Error).message);
           }
-
-          // Refresh transactions from database
-          await fetchTransactions();
-
-          // Add upload log
-          const uploadLog = {
-            id: Date.now().toString(),
-            fileName: file.name,
-            uploadDate: new Date().toLocaleString(),
-            newTransactions: uniqueNewTransactions.length,
-            totalTransactions: parsedData.length,
-            duplicates: duplicates
-          };
-          setUploadLogs(prev => [uploadLog, ...prev.slice(0, 4)]);
-        } catch (error) {
-          console.error('Error uploading transactions:', error);
-          alert('Failed to upload transactions');
+        },
+        error: (err) => {
+          console.error('CSV parsing error:', err);
+          alert('Failed to parse CSV: ' + err.message);
         }
-
-        setIsUploadDialogOpen(false);
-      },
-      error: (err) => {
-        alert('Failed to parse CSV: ' + err.message);
-      }
-    });
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      alert('Failed to upload file: ' + (error as Error).message);
+    }
   };
 
   const handleExport = () => {
@@ -204,7 +265,8 @@ const AdminTransactions = () => {
       'Quantity': t.quantity,
       'Trade Price': t.price,
       'Commission': t.commission,
-      'Exchange Rate': t.exchangeRate
+      'Exchange Rate': t.exchangeRate,
+      'Currency': t.currency || 'USD'
     }));
 
     // Convert to CSV string
@@ -223,12 +285,21 @@ const AdminTransactions = () => {
   };
 
   const filteredTransactions = transactions.filter(transaction => {
+    // Search term filter
     const matchesSearch = 
-      transaction.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
       transaction.account.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.transactionType.toLowerCase().includes(searchTerm.toLowerCase());
+      transaction.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.currency || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Transaction type filter
     const matchesFilter = filterType === 'all' || transaction.transactionType === filterType;
-    return matchesSearch && matchesFilter;
+
+    // Date range filter
+    const transactionDate = new Date(transaction.date);
+    const matchesDateRange = (!startDate || transactionDate >= new Date(startDate)) &&
+                           (!endDate || transactionDate <= new Date(endDate));
+
+    return matchesSearch && matchesFilter && matchesDateRange;
   });
 
   return (
@@ -274,11 +345,17 @@ const AdminTransactions = () => {
               setSearchTerm={setSearchTerm}
               filterType={filterType}
               setFilterType={setFilterType}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
             />
             <TransactionTable
               transactions={filteredTransactions}
               accountMappings={[]}
               onAddNew={handleAddNew}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
             />
           </TabsContent>
           <TabsContent value="logs" className="space-y-6">
