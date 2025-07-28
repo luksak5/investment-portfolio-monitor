@@ -92,7 +92,6 @@ const TransactionDialog = ({
                 <SelectItem value="USD">USD</SelectItem>
                 <SelectItem value="EUR">EUR</SelectItem>
                 <SelectItem value="GBP">GBP</SelectItem>
-                <SelectItem value="CAD">CAD</SelectItem>
                 <SelectItem value="INR">INR</SelectItem>
               </SelectContent>
             </Select>
@@ -132,7 +131,8 @@ const TransactionDialog = ({
               id="quantity"
               type="number"
               step="0.01"
-              value={editingTransaction.quantity || ''}
+              min="0"
+              value={editingTransaction.quantity === 0 ? 0 : editingTransaction.quantity || ''}
               onChange={(e) => setEditingTransaction({
                 ...editingTransaction,
                 quantity: e.target.value ? parseFloat(e.target.value) : null
@@ -140,15 +140,16 @@ const TransactionDialog = ({
             />
           </div>
           <div>
-            <Label htmlFor="price">Trade Price</Label>
+            <Label htmlFor="tradePrice">Trade Price</Label>
             <Input
-              id="price"
+              id="tradePrice"
               type="number"
-              step="0.0001"
-              value={editingTransaction.price || ''}
+              step="0.01"
+              min="0"
+              value={editingTransaction.tradePrice === 0 ? 0 : editingTransaction.tradePrice || ''}
               onChange={(e) => setEditingTransaction({
                 ...editingTransaction,
-                price: e.target.value ? parseFloat(e.target.value) : null
+                tradePrice: e.target.value ? parseFloat(e.target.value) : null
               })}
             />
           </div>
@@ -158,7 +159,8 @@ const TransactionDialog = ({
               id="commission"
               type="number"
               step="0.01"
-              value={editingTransaction.commission || ''}
+              min="0"
+              value={editingTransaction.commission === 0 ? 0 : editingTransaction.commission || ''}
               onChange={(e) => setEditingTransaction({
                 ...editingTransaction,
                 commission: e.target.value ? parseFloat(e.target.value) : null

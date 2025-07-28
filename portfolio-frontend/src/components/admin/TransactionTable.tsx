@@ -12,10 +12,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Transaction, AccountMapping } from '@/types/transaction';
+import type { Transaction } from '@/types/transaction';
 import { formatDate } from '@/types/transaction';
 
-const getCurrencySymbol = (currency: string = 'USD') => {
+const getCurrencySymbol = (currency: string | null | undefined = 'USD') => {
+  if (!currency) return '$'; // Default to USD if currency is null/undefined
   switch(currency.toUpperCase()) {
     case 'USD': return '$';
     case 'EUR': return '€';
@@ -25,7 +26,7 @@ const getCurrencySymbol = (currency: string = 'USD') => {
   }
 };
 
-const formatMoneyWithCurrency = (amount: number | null, currency: string = 'USD') => {
+const formatMoneyWithCurrency = (amount: number | null, currency: string | null | undefined = 'USD') => {
   if (amount === null) return '-';
   const symbol = getCurrencySymbol(currency);
   return `${symbol}${amount.toFixed(2)}`;
@@ -33,7 +34,6 @@ const formatMoneyWithCurrency = (amount: number | null, currency: string = 'USD'
 
 interface TransactionTableProps {
   transactions: Transaction[];
-  accountMappings: AccountMapping[];
   onAddNew: () => void;
   onEdit: (transaction: Transaction) => void;
   onDelete: (ids: string[]) => void;
@@ -41,7 +41,6 @@ interface TransactionTableProps {
 
 const TransactionTable = ({ 
   transactions, 
-  accountMappings, 
   onAddNew,
   onEdit,
   onDelete
@@ -74,17 +73,10 @@ const TransactionTable = ({
     }
   };
 
-  const getClientName = (account: string) => {
-    const mapping = accountMappings.find(m => m.fullAccount === account && m.isActive);
-    return mapping ? mapping.clientName : 'Unknown Client';
-  };
-
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case 'Buy': return 'bg-green-100 text-green-800';
       case 'Sell': return 'bg-red-100 text-red-800';
-      case 'Credit Interest': return 'bg-blue-100 text-blue-800';
-      case 'Deposit': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -96,7 +88,7 @@ const TransactionTable = ({
           <div>
             <CardTitle>Transactions ({transactions.length})</CardTitle>
             <CardDescription>
-              All transaction records with resolved account mappings
+              All transaction records
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -168,7 +160,7 @@ const TransactionTable = ({
                     {transaction.quantity !== null ? transaction.quantity.toFixed(2) : '-'}
                   </TableCell>
                   <TableCell className="text-right">
-                    {formatMoneyWithCurrency(transaction.price, transaction.currency)}
+                    {formatMoneyWithCurrency(transaction.tradePrice, transaction.currency)}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatMoneyWithCurrency(transaction.commission, transaction.currency)}

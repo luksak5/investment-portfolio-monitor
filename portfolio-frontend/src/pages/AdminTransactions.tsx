@@ -19,7 +19,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { convertDate, formatDate } from '@/types/transaction';
 
 const getTransactionKey = (t: Partial<Transaction>) =>
-  [t.date, t.account, t.transactionType, t.symbol, t.quantity, t.price].join('|');
+  [t.date, t.account, t.transactionType, t.symbol, t.quantity, t.tradePrice].join('|');
 
 const AdminTransactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -122,12 +122,13 @@ const AdminTransactions = () => {
   const handleAddNew = () => {
     const newTransaction: Transaction = {
       id: `temp_${Date.now()}`,
-      date: new Date(),
-      account: '',
       transactionType: 'Buy',
+      currency: 'USD',
+      account: '',
       symbol: '',
+      date: new Date(),
       quantity: 0,
-      price: 0,
+      tradePrice: 0,
       commission: 0,
       exchangeRate: 1.0000
     };
@@ -162,7 +163,7 @@ const AdminTransactions = () => {
             // Create unique keys for existing transactions
             const existingKeys = new Set(
               (existingTransactions || []).map(t => 
-                `${formatDate(t.date)}|${t.account}|${t.transactionType}|${t.symbol}|${t.quantity}|${t.price}`
+                `${formatDate(t.date)}|${t.account}|${t.transactionType}|${t.symbol}|${t.quantity}|${t.tradePrice}`
               )
             );
 
@@ -178,21 +179,21 @@ const AdminTransactions = () => {
               }
 
               return {
-                transactionType: row['Transaction Type'] || '',
+                transactionType: row['Transaction Type'] || 'Buy',
+                currency: row['Currency'] || 'USD',
                 account: row['Account'] || '',
                 symbol: row['Symbol'] || '',
                 date: transactionDate,
-                quantity: row['Quantity'] ? parseFloat(row['Quantity']) : null,
-                price: row['Trade Price'] ? parseFloat(row['Trade Price']) : null,
-                commission: row['Commission'] ? parseFloat(row['Commission']) : (row['Comm/Fee'] ? parseFloat(row['Comm/Fee']) : null),
-                exchangeRate: row['Exchange Rate'] ? parseFloat(row['Exchange Rate']) : 1.0,
-                currency: row['Currency'] || 'USD'  // Add this line to properly map currency
+                quantity: row['Quantity'] ? parseFloat(row['Quantity']) : 0,
+                tradePrice: row['Trade Price'] ? parseFloat(row['Trade Price']) : 0,
+                commission: row['Commission'] ? parseFloat(row['Commission']) : 0,
+                exchangeRate: row['Exchange Rate'] ? parseFloat(row['Exchange Rate']) : 1.0
               };
             });
 
             // Check for duplicates using the same key format
             const uniqueNewTransactions = newTransactions.filter(t => {
-              const key = `${formatDate(t.date)}|${t.account}|${t.transactionType}|${t.symbol}|${t.quantity}|${t.price}`;
+              const key = `${formatDate(t.date)}|${t.account}|${t.transactionType}|${t.symbol}|${t.quantity}|${t.tradePrice}`;
               return !existingKeys.has(key);
             });
 
@@ -258,15 +259,15 @@ const AdminTransactions = () => {
 
     // Convert transactions to CSV format
     const csvData = transactions.map(t => ({
-      'Date': t.date,
-      'Account': t.account,
       'Transaction Type': t.transactionType,
+      'Currency': t.currency,
+      'Account': t.account,
       'Symbol': t.symbol,
+      'Date': t.date,
       'Quantity': t.quantity,
-      'Trade Price': t.price,
+      'Trade Price': t.tradePrice,
       'Commission': t.commission,
-      'Exchange Rate': t.exchangeRate,
-      'Currency': t.currency || 'USD'
+      'Exchange Rate': t.exchangeRate
     }));
 
     // Convert to CSV string
@@ -289,7 +290,7 @@ const AdminTransactions = () => {
     const matchesSearch = 
       transaction.account.toLowerCase().includes(searchTerm.toLowerCase()) ||
       transaction.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.currency || '').toLowerCase().includes(searchTerm.toLowerCase());
+      transaction.currency.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Transaction type filter
     const matchesFilter = filterType === 'all' || transaction.transactionType === filterType;
@@ -352,7 +353,6 @@ const AdminTransactions = () => {
             />
             <TransactionTable
               transactions={filteredTransactions}
-              accountMappings={[]}
               onAddNew={handleAddNew}
               onEdit={handleEdit}
               onDelete={handleDelete}

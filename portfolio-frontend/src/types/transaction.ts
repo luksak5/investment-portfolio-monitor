@@ -1,25 +1,18 @@
 
 export interface Transaction {
   id: string;
-  date: Date;
-  account: string;
   transactionType: string;
+  currency: string;
+  account: string;
   symbol: string;
+  date: Date;
   quantity: number | null;
-  price: number | null;
+  tradePrice: number | null;
   commission: number | null;
   exchangeRate: number;
-  currency?: string;
 }
 
-export interface AccountMapping {
-  id: string;
-  fullAccount: string;
-  clientName: string;
-  clientEmail: string;
-  riskProfile: string;
-  isActive: boolean;
-}
+
 
 export function convertDate(dateStr: string): Date {
   // Remove extra spaces and convert to lowercase for consistent handling

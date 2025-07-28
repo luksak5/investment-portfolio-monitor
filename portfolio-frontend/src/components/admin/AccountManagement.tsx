@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Save, X, Plus, Trash2, Search, Filter, X as XIcon } from 'lucide-react';
+import { Edit, Save, X, Plus, Trash2, Search, Filter, X as XIcon, CheckCircle, XCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Dialog,
@@ -27,19 +27,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { supabase } from '@/lib/supabaseClient';
 
 // Account Management
 interface Account {
-  id: string; // Provided by user or broker terminal
+  account: string;
   clientName: string;
   clientEmail: string;
   riskProfile: string;
   baseCurrency: string;
+  status?: 'active' | 'inactive';
 }
 
-// Update props interface
 interface AccountManagementProps {
-  onAccountChange: (accounts: Account[]) => void;
+  onAccountChange?: (accounts: Account[]) => void;
+  isClientView?: boolean;
+  title?: string;
+  description?: string;
 }
 
 interface FilterState {
@@ -48,59 +52,151 @@ interface FilterState {
   baseCurrency: string;
 }
 
-const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
+const AccountManagement = ({ 
+  onAccountChange, 
+  isClientView = false,
+  title = isClientView ? "Client Management" : "Account Management",
+  description = isClientView ? "Manage client accounts and their information" : "Manage account information"
+}: AccountManagementProps) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     riskProfile: 'all',
     baseCurrency: 'all'
   });
 
+  // Fetch accounts from Supabase
+  const fetchAccounts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('clientManagement')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching accounts:', error);
+        alert('Failed to fetch accounts: ' + error.message);
+        return;
+      }
+
+      setAccounts(data || []);
+      if (onAccountChange) {
+        onAccountChange(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+      alert('Failed to fetch accounts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load accounts on component mount
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
   const handleEdit = (account: Account) => {
     setEditingAccount({ ...account });
     setIsEditDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!editingAccount?.id || !editingAccount?.clientName || !editingAccount?.clientEmail) {
+  const handleSave = async () => {
+    if (!editingAccount?.account || !editingAccount?.clientName || !editingAccount?.clientEmail) {
       alert('Please fill in all required fields');
       return;
     }
-    if (editingAccount) {
-      let updatedAccounts;
-      const exists = accounts.some(a => a.id === editingAccount.id);
+
+    try {
+      const exists = accounts.some(a => a.account === editingAccount.account);
+      
       if (exists) {
-        updatedAccounts = accounts.map(a =>
-          a.id === editingAccount.id ? editingAccount : a
-        );
+        // Update existing account
+        const { error } = await supabase
+          .from('clientManagement')
+          .update({
+            clientName: editingAccount.clientName,
+            clientEmail: editingAccount.clientEmail,
+            riskProfile: editingAccount.riskProfile,
+            baseCurrency: editingAccount.baseCurrency,
+            status: editingAccount.status || 'active'
+          })
+          .eq('account', editingAccount.account);
+
+        if (error) {
+          console.error('Error updating account:', error);
+          alert('Failed to update account: ' + error.message);
+          return;
+        }
       } else {
-        updatedAccounts = [...accounts, editingAccount];
+        // Insert new account
+        const { error } = await supabase
+          .from('clientManagement')
+          .insert([{
+            account: editingAccount.account,
+            clientName: editingAccount.clientName,
+            clientEmail: editingAccount.clientEmail,
+            riskProfile: editingAccount.riskProfile,
+            baseCurrency: editingAccount.baseCurrency,
+            status: editingAccount.status || 'active'
+          }]);
+
+        if (error) {
+          console.error('Error inserting account:', error);
+          alert('Failed to add account: ' + error.message);
+          return;
+        }
       }
-      setAccounts(updatedAccounts);
-      onAccountChange(updatedAccounts);
+
+      // Refresh the accounts list
+      await fetchAccounts();
       setIsEditDialogOpen(false);
       setEditingAccount(null);
+    } catch (error) {
+      console.error('Error saving account:', error);
+      alert('Failed to save account');
     }
   };
 
   const handleAddNew = () => {
     const newAccount: Account = {
-      id: '', // User will enter this
+      account: '',
       clientName: '',
       clientEmail: '',
       riskProfile: 'Conservative',
-      baseCurrency: 'USD'
+      baseCurrency: 'USD',
+      ...(isClientView && { status: 'active' }),
     };
     setEditingAccount(newAccount);
     setIsEditDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const updatedAccounts = accounts.filter(a => a.id !== id);
-    setAccounts(updatedAccounts);
-    onAccountChange(updatedAccounts);
+  const handleDelete = async (account: string) => {
+    if (!confirm('Are you sure you want to delete this client?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('clientManagement')
+        .delete()
+        .eq('account', account);
+
+      if (error) {
+        console.error('Error deleting account:', error);
+        alert('Failed to delete account: ' + error.message);
+        return;
+      }
+
+      // Refresh the accounts list
+      await fetchAccounts();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      alert('Failed to delete account');
+    }
   };
 
   const handleCloseDialog = () => {
@@ -126,21 +222,17 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
     }
   };
 
-  // Filter accounts based on current filters
   const filteredAccounts = useMemo(() => {
     return accounts.filter(account => {
-      // Search filter
       const searchLower = filters.search.toLowerCase();
       const matchesSearch = !filters.search || 
-        account.id.toLowerCase().includes(searchLower) ||
+        account.account.toLowerCase().includes(searchLower) ||
         account.clientName.toLowerCase().includes(searchLower) ||
         account.clientEmail.toLowerCase().includes(searchLower);
 
-      // Risk profile filter
       const matchesRiskProfile = filters.riskProfile === 'all' || 
         account.riskProfile === filters.riskProfile;
 
-      // Base currency filter
       const matchesBaseCurrency = filters.baseCurrency === 'all' || 
         account.baseCurrency === filters.baseCurrency;
 
@@ -150,15 +242,26 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
 
   const hasActiveFilters = filters.search || filters.riskProfile !== 'all' || filters.baseCurrency !== 'all';
 
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading clients...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Account Management</CardTitle>
-            <CardDescription>
-              Manage client accounts and their information
-            </CardDescription>
+            <CardTitle className="text-3xl font-bold text-foreground">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
           </div>
           <div className="flex gap-2">
             <Popover>
@@ -176,7 +279,7 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
               <PopoverContent className="w-80" align="end">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Filter Accounts</h4>
+                    <h4 className="font-medium">Filter {isClientView ? 'Clients' : 'Accounts'}</h4>
                     {hasActiveFilters && (
                       <Button variant="ghost" size="sm" onClick={clearFilters}>
                         <XIcon className="w-4 h-4 mr-1" />
@@ -184,7 +287,6 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                       </Button>
                     )}
                   </div>
-                  
                   <div className="space-y-3">
                     <div>
                       <Label htmlFor="search">Search</Label>
@@ -199,7 +301,6 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                         />
                       </div>
                     </div>
-
                     <div>
                       <Label htmlFor="riskProfile">Risk Profile</Label>
                       <Select
@@ -218,7 +319,6 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div>
                       <Label htmlFor="baseCurrency">Base Currency</Label>
                       <Select
@@ -238,11 +338,10 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                       </Select>
                     </div>
                   </div>
-
                   {hasActiveFilters && (
                     <div className="pt-2 border-t">
                       <p className="text-sm text-muted-foreground">
-                        Showing {filteredAccounts.length} of {accounts.length} accounts
+                        Showing {filteredAccounts.length} of {accounts.length} {isClientView ? 'clients' : 'accounts'}
                       </p>
                     </div>
                   )}
@@ -251,7 +350,7 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
             </Popover>
             <Button onClick={handleAddNew}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Account
+              Add {isClientView ? 'Client' : 'Account'}
             </Button>
           </div>
         </div>
@@ -266,23 +365,24 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                 <TableHead>Email Id</TableHead>
                 <TableHead>Risk Profile</TableHead>
                 <TableHead>Base Currency</TableHead>
+                {isClientView && <TableHead>Status</TableHead>}
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAccounts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isClientView ? 7 : 6} className="text-center py-8 text-muted-foreground">
                     {accounts.length === 0 
-                      ? "No accounts found. Add your first account to get started."
-                      : "No accounts match your current filters."
+                      ? `No ${isClientView ? 'clients' : 'accounts'} found. Add your first ${isClientView ? 'client' : 'account'} to get started.`
+                      : `No ${isClientView ? 'clients' : 'accounts'} match your current filters.`
                     }
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredAccounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell className="font-mono font-semibold">{account.id}</TableCell>
+                  <TableRow key={account.account}>
+                    <TableCell className="font-mono font-semibold">{account.account}</TableCell>
                     <TableCell>{account.clientName}</TableCell>
                     <TableCell>{account.clientEmail}</TableCell>
                     <TableCell>
@@ -291,6 +391,19 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                       </Badge>
                     </TableCell>
                     <TableCell>{account.baseCurrency}</TableCell>
+                    {isClientView && (
+                      <TableCell>
+                        {account.status === 'active' ? (
+                          <span className="flex items-center gap-1 text-green-800 font-semibold">
+                            <CheckCircle className="w-4 h-4 text-green-700" /> Active
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-red-700 font-semibold">
+                            <XCircle className="w-4 h-4 text-red-600" /> Inactive
+                          </span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex gap-1">
                         <Button
@@ -303,7 +416,7 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(account.id)}
+                          onClick={() => handleDelete(account.account)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -317,28 +430,29 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
           </Table>
         </div>
 
-        {/* Edit Account Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                {editingAccount && accounts.some(a => a.id === editingAccount.id) ? 'Edit Account' : 'Add Account'}
+                {editingAccount && accounts.some(a => a.account === editingAccount.account) 
+                  ? `Edit ${isClientView ? 'Client' : 'Account'}`
+                  : `Add ${isClientView ? 'Client' : 'Account'}`}
               </DialogTitle>
               <DialogDescription>
-                Add or edit account information and client details
+                Add or edit {isClientView ? 'client' : 'account'} information and details
               </DialogDescription>
             </DialogHeader>
             {editingAccount && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="id">Account Id</Label>
+                  <Label htmlFor="account">Account Id</Label>
                   <Input
-                    id="id"
+                    id="account"
                     placeholder="e.g., UKRW37605"
-                    value={editingAccount.id}
+                    value={editingAccount.account}
                     onChange={(e) => setEditingAccount({
                       ...editingAccount,
-                      id: e.target.value
+                      account: e.target.value
                     })}
                   />
                 </div>
@@ -407,6 +521,26 @@ const AccountManagement = ({ onAccountChange }: AccountManagementProps) => {
                     </SelectContent>
                   </Select>
                 </div>
+                {isClientView && (
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={editingAccount.status}
+                      onValueChange={(value) => setEditingAccount({
+                        ...editingAccount,
+                        status: value as 'active' | 'inactive'
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             )}
             <DialogFooter>
