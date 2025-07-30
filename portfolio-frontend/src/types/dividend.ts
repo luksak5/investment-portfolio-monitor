@@ -1,31 +1,28 @@
 /**
- * @fileoverview Transaction type definitions and utility functions for portfolio management
- * @description Core types and helper functions for transaction data handling, including date conversion utilities
+ * @fileoverview Dividend type definitions and utility functions for portfolio management
+ * @description Core types and helper functions for dividend data handling
  * @version 1.0.0
  * @author Portfolio Monitor Team
  * @license MIT
  * 
  * This module provides:
- * - Transaction interface definition
+ * - Dividend interface definition
  * - Date conversion utilities for CSV imports
  * - Date formatting functions for display
  * 
  * @example
  * ```typescript
- * import { Transaction, convertDate, formatDate } from '@/types/transaction';
+ * import { Dividend, convertDate, formatDate } from '@/types/dividend';
  * 
- * // Create a transaction
- * const transaction: Transaction = {
+ * // Create a dividend
+ * const dividend: Dividend = {
  *   id: 'uuid-123',
- *   transactionType: 'Buy',
+ *   transactionType: 'Dividends',
  *   currency: 'USD',
  *   account: 'ACC001234',
  *   symbol: 'AAPL',
  *   date: new Date('2024-01-15'),
- *   quantity: 100,
- *   tradePrice: 150.25,
- *   commission: 9.99,
- *   exchangeRate: 1.0000
+ *   amount: 150.25
  * };
  * 
  * // Convert date string to Date object
@@ -37,39 +34,33 @@
  */
 
 /**
- * Represents a financial transaction in the portfolio management system.
- *
- * @interface Transaction
- * @description Core data structure for all transaction operations including buys, sells, and related metadata
- *
- * @property {string} id - Unique identifier for the transaction (UUID format)
- * @property {string} transactionType - Type of trade operation ('Buy' | 'Sell')
- * @property {string} currency - Currency code for the transaction ('USD' | 'EUR' | 'GBP' | 'INR')
+ * Represents a dividend payment in the portfolio management system.
+ * 
+ * @interface Dividend
+ * @description Core data structure for dividend operations and related metadata
+ * 
+ * @property {string} id - Unique identifier for the dividend (UUID format)
+ * @property {string} transactionType - Type of transaction (always 'Dividends')
+ * @property {string} currency - Currency code for the dividend ('USD' | 'EUR' | 'GBP' | 'INR')
  * @property {string} account - Client account identifier (foreign key to clientManagement table)
  * @property {string} symbol - Stock/security symbol (e.g., 'AAPL', 'GOOGL', 'MSFT')
- * @property {Date} date - Transaction execution date
- * @property {number | null} quantity - Number of shares/units traded (null if not applicable)
- * @property {number | null} tradePrice - Price per share/unit at time of trade (null if not applicable)
- * @property {number | null} commission - Transaction fees charged (null if not applicable)
- * @property {number} exchangeRate - Currency conversion rate (default: 1.0000 for same currency)
- * @property {string} status - Status of the transaction ('active' | 'inactive')
+ * @property {Date} date - Dividend payment date
+ * @property {number} amount - Dividend amount received
+ * @property {string} status - Status of the dividend ('active' | 'inactive')
  * @property {string} created_at - Timestamp when record was created
  * @property {string} updated_at - Timestamp when record was last updated
- *
+ * 
  * @example
  * ```typescript
- * // Buy transaction example
- * const buyTransaction: Transaction = {
+ * // Dividend example
+ * const dividend: Dividend = {
  *   id: '550e8400-e29b-41d4-a716-446655440000',
- *   transactionType: 'Buy',
+ *   transactionType: 'Dividends',
  *   currency: 'USD',
  *   account: 'ACC001234',
  *   symbol: 'AAPL',
  *   date: new Date('2024-01-15'),
- *   quantity: 100,
- *   tradePrice: 150.25,
- *   commission: 9.99,
- *   exchangeRate: 1.0000,
+ *   amount: 150.25,
  *   status: 'active',
  *   created_at: '2024-01-15T10:00:00Z',
  *   updated_at: '2024-01-15T16:45:00Z'
@@ -77,47 +68,38 @@
  * ```
  * 
  * @databaseMapping
- * Maps to the 'transactions' table in Supabase with the following constraints:
+ * Maps to the 'dividends' table in Supabase with the following constraints:
  * - id: UUID PRIMARY KEY, NOT NULL
- * - transactionType: TEXT NOT NULL, CHECK (transactionType IN ('Buy', 'Sell'))
+ * - transactionType: TEXT NOT NULL, DEFAULT 'Dividends', CHECK (transactionType = 'Dividends')
  * - currency: TEXT NOT NULL, CHECK (currency IN ('USD', 'EUR', 'GBP', 'INR'))
  * - account: TEXT NOT NULL, FOREIGN KEY REFERENCES clientManagement(account)
  * - symbol: TEXT NOT NULL
- * - date: DATE NOT NULL
- * - quantity: DECIMAL(15,4) NOT NULL, CHECK (quantity >= 0)
- * - tradePrice: DECIMAL(15,4) NOT NULL, CHECK (tradePrice >= 0)
- * - commission: DECIMAL(15,4) NOT NULL, CHECK (commission >= 0)
- * - exchangeRate: DECIMAL(10,4) NOT NULL, CHECK (exchangeRate >= 1)
+ * - date: TIMESTAMP WITH TIME ZONE NOT NULL
+ * - amount: DECIMAL(10,2) NOT NULL, CHECK (amount >= 0)
  * - status: TEXT NOT NULL, DEFAULT 'active', CHECK (status IN ('active', 'inactive'))
  * - created_at: TIMESTAMP WITH TIME ZONE DEFAULT NOW()
  * - updated_at: TIMESTAMP WITH TIME ZONE DEFAULT NOW()
- *
+ * 
  * @since 1.0.0
  * @see {@link convertDate} for date string conversion
  * @see {@link formatDate} for date formatting
  */
-export interface Transaction {
-  /** Unique identifier for the transaction (UUID format) */
+export interface Dividend {
+  /** Unique identifier for the dividend (UUID format) */
   id: string;
-  /** Type of trade operation ('Buy' | 'Sell') */
+  /** Type of transaction (always 'Dividends') */
   transactionType: string;
-  /** Currency code for the transaction ('USD' | 'EUR' | 'GBP' | 'INR') */
+  /** Currency code for the dividend ('USD' | 'EUR' | 'GBP' | 'INR') */
   currency: string;
   /** Client account identifier (foreign key to clientManagement table) */
   account: string;
   /** Stock/security symbol (e.g., 'AAPL', 'GOOGL', 'MSFT') */
   symbol: string;
-  /** Transaction execution date */
+  /** Dividend payment date */
   date: Date;
-  /** Number of shares/units traded (null if not applicable) */
-  quantity: number | null;
-  /** Price per share/unit at time of trade (null if not applicable) */
-  tradePrice: number | null;
-  /** Transaction fees charged (null if not applicable) */
-  commission: number | null;
-  /** Currency conversion rate (default: 1.0000 for same currency) */
-  exchangeRate: number;
-  /** Status of the transaction ('active' | 'inactive') */
+  /** Dividend amount received */
+  amount: number;
+  /** Status of the dividend ('active' | 'inactive') */
   status: string;
   /** Timestamp when record was created */
   created_at: string;
@@ -301,4 +283,4 @@ export function formatDate(date: Date | string): string {
     console.error('Error formatting date:', error);
     return 'Invalid Date';
   }
-}
+} 

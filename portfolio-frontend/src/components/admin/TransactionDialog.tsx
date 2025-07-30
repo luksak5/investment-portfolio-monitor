@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ interface TransactionDialogProps {
   onClose: () => void;
   editingTransaction: Transaction | null;
   setEditingTransaction: (transaction: Transaction | null) => void;
-  onSave: () => void;
+  onSave: (transaction: Transaction) => void;
 }
 
 const TransactionDialog = ({
@@ -37,9 +37,48 @@ const TransactionDialog = ({
   setEditingTransaction,
   onSave
 }: TransactionDialogProps) => {
-  if (!editingTransaction) return null;
+  // State for form data
+  const [formData, setFormData] = useState<Transaction>({
+    id: '',
+    transactionType: 'Buy',
+    currency: 'USD',
+    account: '',
+    symbol: '',
+    date: new Date(),
+    quantity: 0,
+    tradePrice: 0,
+    commission: 0,
+    exchangeRate: 1.0000,
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  });
 
-  const isNewTransaction = editingTransaction.id.startsWith('temp_');
+  // Update form data when editingTransaction changes
+  useEffect(() => {
+    if (editingTransaction) {
+      setFormData(editingTransaction);
+    } else {
+      // Reset form for new transaction
+      setFormData({
+        id: `temp_${Date.now()}`,
+        transactionType: 'Buy',
+        currency: 'USD',
+        account: '',
+        symbol: '',
+        date: new Date(),
+        quantity: 0,
+        tradePrice: 0,
+        commission: 0,
+        exchangeRate: 1.0000,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+  }, [editingTransaction]);
+
+  const isNewTransaction = formData.id.startsWith('temp_');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -58,9 +97,9 @@ const TransactionDialog = ({
             <Input
               id="date"
               type="date"
-              value={formatDate(editingTransaction.date)}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formatDate(formData.date)}
+              onChange={(e) => setFormData({
+                ...formData,
                 date: new Date(e.target.value)
               })}
             />
@@ -69,9 +108,9 @@ const TransactionDialog = ({
             <Label htmlFor="account">Account</Label>
             <Input
               id="account"
-              value={editingTransaction.account}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.account}
+              onChange={(e) => setFormData({
+                ...formData,
                 account: e.target.value
               })}
             />
@@ -79,9 +118,9 @@ const TransactionDialog = ({
           <div>
             <Label htmlFor="currency">Currency</Label>
             <Select
-              value={editingTransaction.currency || 'USD'}
-              onValueChange={(value) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.currency || 'USD'}
+              onValueChange={(value) => setFormData({
+                ...formData,
                 currency: value
               })}
             >
@@ -99,9 +138,9 @@ const TransactionDialog = ({
           <div>
             <Label htmlFor="transactionType">Trades</Label>
             <Select
-              value={editingTransaction.transactionType}
-              onValueChange={(value) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.transactionType}
+              onValueChange={(value) => setFormData({
+                ...formData,
                 transactionType: value
               })}
             >
@@ -118,9 +157,9 @@ const TransactionDialog = ({
             <Label htmlFor="symbol">Symbol</Label>
             <Input
               id="symbol"
-              value={editingTransaction.symbol}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.symbol}
+              onChange={(e) => setFormData({
+                ...formData,
                 symbol: e.target.value.toUpperCase()
               })}
             />
@@ -132,9 +171,9 @@ const TransactionDialog = ({
               type="number"
               step="0.01"
               min="0"
-              value={editingTransaction.quantity === 0 ? 0 : editingTransaction.quantity || ''}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.quantity === 0 ? 0 : formData.quantity || ''}
+              onChange={(e) => setFormData({
+                ...formData,
                 quantity: e.target.value ? parseFloat(e.target.value) : null
               })}
             />
@@ -146,9 +185,9 @@ const TransactionDialog = ({
               type="number"
               step="0.01"
               min="0"
-              value={editingTransaction.tradePrice === 0 ? 0 : editingTransaction.tradePrice || ''}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.tradePrice === 0 ? 0 : formData.tradePrice || ''}
+              onChange={(e) => setFormData({
+                ...formData,
                 tradePrice: e.target.value ? parseFloat(e.target.value) : null
               })}
             />
@@ -160,9 +199,9 @@ const TransactionDialog = ({
               type="number"
               step="0.01"
               min="0"
-              value={editingTransaction.commission === 0 ? 0 : editingTransaction.commission || ''}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.commission === 0 ? 0 : formData.commission || ''}
+              onChange={(e) => setFormData({
+                ...formData,
                 commission: e.target.value ? parseFloat(e.target.value) : null
               })}
             />
@@ -173,19 +212,37 @@ const TransactionDialog = ({
               id="exchangeRate"
               type="number"
               step="0.0001"
-              value={editingTransaction.exchangeRate}
-              onChange={(e) => setEditingTransaction({
-                ...editingTransaction,
+              value={formData.exchangeRate}
+              onChange={(e) => setFormData({
+                ...formData,
                 exchangeRate: parseFloat(e.target.value) || 1
               })}
             />
+          </div>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => setFormData({
+                ...formData,
+                status: value
+              })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+                             <SelectContent>
+                 <SelectItem value="active">Active</SelectItem>
+                 <SelectItem value="inactive">Inactive</SelectItem>
+               </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={onSave}>
+          <Button onClick={() => onSave(formData)}>
             <Save className="w-4 h-4 mr-2" />
             {isNewTransaction ? 'Add Transaction' : 'Save Changes'}
           </Button>

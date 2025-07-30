@@ -32,6 +32,48 @@ const formatMoneyWithCurrency = (amount: number | null, currency: string | null 
   return `${symbol}${amount.toFixed(2)}`;
 };
 
+/**
+ * Returns CSS classes for transaction type badges.
+ * 
+ * @function getTransactionTypeColor
+ * @param {string} type - Transaction type ('Buy' | 'Sell')
+ * @returns {string} CSS classes for styling
+ * 
+ * @example
+ * ```typescript
+ * getTransactionTypeColor('Buy')   // Returns 'bg-green-100 text-green-800'
+ * getTransactionTypeColor('Sell')  // Returns 'bg-red-100 text-red-800'
+ * ```
+ */
+const getTransactionTypeColor = (type: string) => {
+  switch (type) {
+    case 'Buy': return 'bg-green-100 text-green-800';
+    case 'Sell': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+/**
+ * Returns CSS classes for status badges.
+ * 
+ * @function getStatusColor
+ * @param {string} status - Status ('active' or 'inactive')
+ * @returns {string} CSS classes for styling
+ * 
+ * @example
+ * ```typescript
+ * getStatusColor('active')   // Returns 'bg-green-100 text-green-800'
+ * getStatusColor('inactive') // Returns 'bg-red-100 text-red-800'
+ * ```
+ */
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'active': return 'bg-green-100 text-green-800';
+    case 'inactive': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
 interface TransactionTableProps {
   transactions: Transaction[];
   onAddNew: () => void;
@@ -70,14 +112,6 @@ const TransactionTable = ({
     if (window.confirm(`Are you sure you want to delete ${selectedTransactions.size} transaction(s)?`)) {
       onDelete(Array.from(selectedTransactions));
       setSelectedTransactions(new Set());
-    }
-  };
-
-  const getTransactionTypeColor = (type: string) => {
-    switch (type) {
-      case 'Buy': return 'bg-green-100 text-green-800';
-      case 'Sell': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -120,15 +154,17 @@ const TransactionTable = ({
                     onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                   />
                 </TableHead>
-                <TableHead>Trades</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Currency</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Symbol</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Last Updated</TableHead>
                 <TableHead className="text-right">Quantity</TableHead>
                 <TableHead className="text-right">Trade Price</TableHead>
                 <TableHead className="text-right">Commission</TableHead>
-                <TableHead className="text-right">Exchange Rate</TableHead>
                 <TableHead className="w-12">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -156,8 +192,19 @@ const TransactionTable = ({
                   </TableCell>
                   <TableCell>{transaction.symbol}</TableCell>
                   <TableCell>{formatDate(transaction.date)}</TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(transaction.status || 'active')}>
+                      {transaction.status || 'active'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell title={new Date(transaction.created_at).toLocaleString()}>
+                    {new Date(transaction.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell title={new Date(transaction.updated_at).toLocaleString()}>
+                    {new Date(transaction.updated_at).toLocaleDateString()}
+                  </TableCell>
                   <TableCell className="text-right">
-                    {transaction.quantity !== null ? transaction.quantity.toFixed(2) : '-'}
+                    {transaction.quantity?.toFixed(4) || '-'}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatMoneyWithCurrency(transaction.tradePrice, transaction.currency)}
@@ -165,7 +212,6 @@ const TransactionTable = ({
                   <TableCell className="text-right">
                     {formatMoneyWithCurrency(transaction.commission, transaction.currency)}
                   </TableCell>
-                  <TableCell className="text-right">{transaction.exchangeRate.toFixed(4)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

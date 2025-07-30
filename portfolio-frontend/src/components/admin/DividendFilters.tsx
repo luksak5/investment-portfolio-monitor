@@ -1,7 +1,6 @@
-
 /**
- * @fileoverview Transaction filters component for filtering transaction data
- * @description Filter controls for searching and filtering transactions
+ * @fileoverview Dividend filters component for filtering dividend data
+ * @description Filter controls for searching and filtering dividends
  * @version 1.0.0
  * @author Portfolio Monitor Team
  */
@@ -16,15 +15,13 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /**
- * Props interface for the TransactionFilters component.
+ * Props interface for the DividendFilters component.
  * 
- * @interface TransactionFiltersProps
- * @description Component properties for transaction filters
+ * @interface DividendFiltersProps
+ * @description Component properties for dividend filters
  * 
  * @property {string} searchTerm - Current search term
  * @property {(term: string) => void} onSearchChange - Callback for search term changes
- * @property {string} transactionTypeFilter - Current transaction type filter ('all', 'Buy', 'Sell')
- * @property {(type: string) => void} onTransactionTypeFilterChange - Callback for transaction type filter changes
  * @property {Date | undefined} startDate - Start date for date range filter
  * @property {Date | undefined} endDate - End date for date range filter
  * @property {(date: Date | undefined) => void} onStartDateChange - Callback for start date changes
@@ -33,11 +30,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
  * @property {(status: string) => void} onStatusFilterChange - Callback for status filter changes
  * @property {() => void} onClearFilters - Callback to clear all filters
  */
-interface TransactionFiltersProps {
+interface DividendFiltersProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  transactionTypeFilter: string;
-  onTransactionTypeFilterChange: (type: string) => void;
   startDate: Date | undefined;
   endDate: Date | undefined;
   onStartDateChange: (date: Date | undefined) => void;
@@ -48,46 +43,36 @@ interface TransactionFiltersProps {
 }
 
 /**
- * Filter controls for searching and filtering transactions.
+ * Filter controls for searching and filtering dividends.
  * 
- * @component TransactionFilters
- * @description Filter controls for transaction data with search, type, status, and date range functionality
+ * @component DividendFilters
+ * @description Filter controls for dividend data with search and date range functionality
  * 
- * @param {TransactionFiltersProps} props - Component properties
+ * @param {DividendFiltersProps} props - Component properties
  * @param {string} props.searchTerm - Current search term
  * @param {(term: string) => void} props.onSearchChange - Callback for search term changes
- * @param {string} props.transactionTypeFilter - Current transaction type filter
- * @param {(type: string) => void} props.onTransactionTypeFilterChange - Callback for transaction type filter changes
  * @param {Date | undefined} props.startDate - Start date for date range filter
  * @param {Date | undefined} props.endDate - End date for date range filter
  * @param {(date: Date | undefined) => void} props.onStartDateChange - Callback for start date changes
  * @param {(date: Date | undefined) => void} props.onEndDateChange - Callback for end date changes
- * @param {string} props.statusFilter - Current status filter
- * @param {(status: string) => void} props.onStatusFilterChange - Callback for status filter changes
  * @param {() => void} props.onClearFilters - Callback to clear all filters
  * 
  * @example
  * ```tsx
- * <TransactionFilters
+ * <DividendFilters
  *   searchTerm={searchTerm}
  *   onSearchChange={setSearchTerm}
- *   transactionTypeFilter={transactionTypeFilter}
- *   onTransactionTypeFilterChange={setTransactionTypeFilter}
  *   startDate={startDate}
  *   endDate={endDate}
  *   onStartDateChange={setStartDate}
  *   onEndDateChange={setEndDate}
- *   statusFilter={statusFilter}
- *   onStatusFilterChange={setStatusFilter}
  *   onClearFilters={handleClearFilters}
  * />
  * ```
  * 
  * @features
  * - Search by account, symbol, and currency
- * - Transaction type filtering (All, Buy, Sell)
- * - Status filtering (All, Active, Inactive)
- * - Date range filtering with year dropdown
+ * - Date range filtering
  * - Clear filters functionality
  * - Responsive design
  * 
@@ -97,18 +82,15 @@ interface TransactionFiltersProps {
  * - @/components/ui/button
  * - @/components/ui/popover
  * - @/components/ui/calendar
- * - @/components/ui/select
  * - lucide-react icons
  * - date-fns
  * 
  * @since 1.0.0
  * @author Portfolio Monitor Team
  */
-const TransactionFilters = ({
+const DividendFilters = ({
   searchTerm,
   onSearchChange,
-  transactionTypeFilter,
-  onTransactionTypeFilterChange,
   startDate,
   endDate,
   onStartDateChange,
@@ -116,7 +98,7 @@ const TransactionFilters = ({
   statusFilter,
   onStatusFilterChange,
   onClearFilters
-}: TransactionFiltersProps) => {
+}: DividendFiltersProps) => {
   /**
    * Handles clearing all filters.
    * 
@@ -124,7 +106,6 @@ const TransactionFilters = ({
    */
   const handleClearFilters = () => {
     onSearchChange('');
-    onTransactionTypeFilterChange('all');
     onStartDateChange(undefined);
     onEndDateChange(undefined);
     onStatusFilterChange('all');
@@ -139,7 +120,7 @@ const TransactionFilters = ({
           Filters
         </CardTitle>
         <CardDescription>
-          Filter transactions by search terms, transaction type, status, and date ranges
+          Filter dividends by search terms, date ranges, and status
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -158,41 +139,22 @@ const TransactionFilters = ({
           </div>
         </div>
 
-        {/* Transaction Type and Status Filters - Side by Side */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="transactionType">Transaction Type</Label>
-            <Select
-              value={transactionTypeFilter}
-              onValueChange={onTransactionTypeFilterChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select transaction type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="Buy">Buy</SelectItem>
-                <SelectItem value="Sell">Sell</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={statusFilter}
-              onValueChange={onStatusFilterChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Status Filter */}
+        <div className="space-y-2">
+          <Label htmlFor="status">Status</Label>
+          <Select
+            value={statusFilter}
+            onValueChange={onStatusFilterChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Date Range Filter */}
@@ -222,7 +184,7 @@ const TransactionFilters = ({
         </div>
 
         {/* Clear Filters Button */}
-        {(searchTerm || transactionTypeFilter !== 'all' || startDate || endDate || statusFilter !== 'all') && (
+        {(searchTerm || startDate || endDate || statusFilter !== 'all') && (
           <Button
             variant="outline"
             onClick={handleClearFilters}
@@ -236,4 +198,4 @@ const TransactionFilters = ({
   );
 };
 
-export default TransactionFilters;
+export default DividendFilters; 
