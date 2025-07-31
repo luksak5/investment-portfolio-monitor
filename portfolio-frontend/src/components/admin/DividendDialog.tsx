@@ -107,6 +107,9 @@ const DividendDialog = ({ isOpen, editingDividend, onClose, onSave }: DividendDi
     }
   }, [editingDividend]);
 
+  // Determine if this is a new dividend
+  const isNew = !editingDividend || (editingDividend?.id && editingDividend.id.startsWith('temp_'));
+
   /**
    * Handles form submission.
    * 
@@ -181,10 +184,10 @@ const DividendDialog = ({ isOpen, editingDividend, onClose, onSave }: DividendDi
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {editingDividend ? 'Edit Dividend' : 'Add Dividend'}
+            {isNew ? 'Add Dividend' : 'Edit Dividend'}
           </DialogTitle>
           <DialogDescription>
-            {editingDividend ? 'Modify the dividend details below.' : 'Enter the dividend details below.'}
+            {isNew ? 'Enter the dividend details below.' : 'Modify the dividend details below.'}
           </DialogDescription>
         </DialogHeader>
         
@@ -295,7 +298,7 @@ const DividendDialog = ({ isOpen, editingDividend, onClose, onSave }: DividendDi
               Cancel
             </Button>
             <Button type="submit">
-              {editingDividend ? 'Update Dividend' : 'Add Dividend'}
+              {isNew ? 'Add Dividend' : 'Update Dividend'}
             </Button>
           </DialogFooter>
         </form>
