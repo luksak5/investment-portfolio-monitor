@@ -15,6 +15,7 @@ import AdminReports from "./pages/AdminReports";
 import AdminAdvisors from "./pages/AdminAdvisors";
 import AdminSettings from "./pages/AdminSettings";
 import AdminClients from "./pages/AdminClients";
+import AdminSymbolMappings from "./pages/AdminSymbolMappings";
 import AdvisorReports from "./pages/AdvisorReports";
 import ClientReports from "./pages/ClientReports";
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/admin/clients" element={<AdminClients />} />
           <Route path="/admin/advisors" element={<AdminAdvisors />} />
           <Route path="/admin/transactions" element={<AdminTransactions />} />
+          <Route path="/admin/symbol-mappings" element={<AdminSymbolMappings />} />
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
           <Route path="/advisor" element={<AdvisorDashboard />} />

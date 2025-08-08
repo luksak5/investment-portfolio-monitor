@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, FileText, BarChart3, Settings, Upload, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, BarChart3, Settings, Upload, UserCheck, Hash } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -31,6 +31,7 @@ export const AppSidebar = ({ userRole }: AppSidebarProps) => {
           { title: 'Clients', url: '/admin/clients', icon: Users },
           { title: 'Advisors', url: '/admin/advisors', icon: UserCheck },
           { title: 'Transactions', url: '/admin/transactions', icon: FileText },
+          { title: 'Symbol Mappings', url: '/admin/symbol-mappings', icon: Hash },
           { title: 'Reports', url: '/admin/reports', icon: BarChart3 },
           { title: 'Settings', url: '/admin/settings', icon: Settings },
         ];
